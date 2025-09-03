@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>proj0 — Becoming Friends with Your Camera</title>
+  <meta name="description" content="Part 1: Selfie distortion · Part 2: Architectural perspective compression · Part 3: Dolly zoom (TBD)">
+  <meta name="color-scheme" content="light dark" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+    .shot{overflow:hidden;border-radius:.875rem;background:rgba(148,163,184,.15)}
+    .shot img{transition:transform .6s ease,filter .6s ease;filter:saturate(1) contrast(1.02)}
+    .shot:hover img{transform:scale(1.04);filter:saturate(1.05) contrast(1.06)}
+    .wrap{max-width:72rem;margin-inline:auto}
+  </style>
+</head>
+<body class="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-blue-200/40 dark:selection:bg-blue-800/40">
+
+  <main class="wrap px-4 sm:px-6 lg:px-8 py-16 space-y-20">
+
+    <!-- Header -->
+    <header class="flex items-end justify-between">
+      <h1 class="text-2xl sm:text-3xl font-bold">proj0 — Becoming Friends with Your Camera</h1>
+      <a href="../index.html" class="text-sm underline hover:text-blue-600 dark:hover:text-blue-300">main</a>
+    </header>
+
+    <!-- Part 1 -->
+    <section>
+      <h2 class="text-xl sm:text-2xl font-semibold mb-4">Part 1: Selfie — The Wrong Way vs. The Right Way</h2>
+      <p class="text-slate-600 dark:text-slate-300 mb-6 max-w-2xl">My face looks more distorted as I move closer to the camera due to the iPhone wide‑angle lens. Increasing distance reduces exaggeration.</p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-[36rem]">
+        <figure class="shot aspect-[3/4]"><img src="./media/img0.jpg" alt="Closest" class="w-full h-full object-cover" loading="lazy"></figure>
+        <figure class="shot aspect-[3/4]"><img src="./media/img3.jpg" alt="Backed up" class="w-full h-full object-cover" loading="lazy"></figure>
+      </div>
+    </section>
+
+    <!-- Part 2 -->
+    <section>
+      <h2 class="text-xl sm:text-2xl font-semibold mb-4">Part 2: Architectural Perspective Compression</h2>
+      <p class="text-slate-600 dark:text-slate-300 mb-6 max-w-2xl">Same effect: the smartphone lens enlarges closer features relative to distant ones. Stepping back and zooming in reduces near/far scale differences, compressing the scene.</p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-[36rem]">
+        <!-- img4..img5 -->
+        <figure class="shot aspect-[3/4]"><img src="./media/street1.jpg" alt="Stretched" class="w-full h-full object-cover" loading="lazy"></figure>
+        <figure class="shot aspect-[3/4]"><img src="./media/street2.jpg" alt="Compressed" class="w-full h-full object-cover" loading="lazy"></figure>
+      </div>
+    </section>
+
+    <!-- Part 3 -->
+<!-- Part 3 -->
+<section>
+  <h2 class="text-xl sm:text-2xl font-semibold mb-4">Part 3: The Dolly Zoom</h2>
+  <p class="text-slate-600 dark:text-slate-300 mb-4">How opening gradescope feels:</p>
+  <div class="shot max-w-[18rem] sm:max-w-[17.25rem]">  <!-- no mx-auto -->
+    <img src="./media/gif0.gif" class="w-full h-auto rounded-lg" alt="Isha" />
+  </div>
+</section>
+
+
+  </main>
+
+</body>
+</html>
