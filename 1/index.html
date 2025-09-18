@@ -30,25 +30,356 @@
       <a href="../index.html" class="text-sm underline hover:text-blue-600 dark:hover:text-blue-300">main</a>
     </header>
 
-    <!-- Part 1 -->
-    <section>
-      <h2 class="text-xl sm:text-2xl font-semibold mb-4">Part 1: Single-Scale Implementation</h2>
-      <p class="text-slate-600 dark:text-slate-300 mb-6 max-w-2xl">Searching over a user-specified window of displacements</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-[36rem]">
-        <figure class="shot aspect-[3/4]"><img src="./media/img0.jpg" alt="Closest" class="w-full h-full object-cover" loading="lazy"></figure>
-        <figure class="shot aspect-[3/4]"><img src="./media/img3.jpg" alt="Backed up" class="w-full h-full object-cover" loading="lazy"></figure>
-      </div>
-    </section>
+<!-- Part 1 -->
+<section id="single-scale">
+  <h2 class="text-xl sm:text-2xl font-semibold mb-4">Part 1: Single-Scale Alignment (Low-Res JPEGs)</h2>
 
-     <!-- Part 2 -->
-    <section>
-      <h2 class="text-xl sm:text-2xl font-semibold mb-4">Part 2: Coarse-to-Fine Pyramid Speedup</h2>
-      <p class="text-slate-600 dark:text-slate-300 mb-6 max-w-2xl">An image pyramid represents the image at multiple scales (usually scaled by a factor of 2) and the processing is done sequentially starting from the coarsest scale (smallest image) and going down the pyramid, updating your estimate as you go.</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-[36rem]">
-        <figure class="shot aspect-[3/4]"><img src="./media/img0.jpg" alt="Closest" class="w-full h-full object-cover" loading="lazy"></figure>
-        <figure class="shot aspect-[3/4]"><img src="./media/img3.jpg" alt="Backed up" class="w-full h-full object-cover" loading="lazy"></figure>
+  <p class="text-slate-600 dark:text-slate-300 mb-6 max-w-2xl">
+    Results from a single-scale exhaustive search over a displacement window using
+    <span class="font-semibold">L2 (SSD)</span> and <span class="font-semibold">NCC</span>.
+    Below we show the <span class="font-semibold">L2/SSD</span> alignments; NCC produced identical shifts, so those images are omitted.
+  </p>
+
+  <p class="text-slate-600 dark:text-slate-300 mb-6 max-w-2xl">
+    The alignment works by fixing one color channel and displacing the other two within a fixed range (here, [-15, 15] pixels),
+    while computing an error score relative to the fixed channel. We used the <em>Euclidean norm</em> (minimization)
+    and <em>normalized cross-correlation</em> (maximization).
+  </p>
+
+  <div class="text-slate-600 dark:text-slate-300 max-w-2xl">
+    <p class="mb-2 font-semibold">Notes / issues encountered</p>
+    <ul class="list-disc pl-6 space-y-1">
+      <li><code>np.roll</code> wraps pixels around; we mask out wrapped-in bands so they don’t contaminate the score.</li>
+      <li>We also crop by a fixed fraction during algorithm runtime to avoid frames/scan artifacts affecting alignment.</li>
+      <li>The two metrics did not produce different results since the main differences we looked at were translation/minor exposure variations in the channels, which were very similar for these images under this routine.</li>
+    </ul>
+  </div>
+</section>
+
+
+    </p>
+  </p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-5xl">
+    <!-- Cathedral -->
+    <div class="space-y-2">
+      <figure class="shot aspect-square">
+        <img src="./out/cathedral_fin.jpg" alt="Cathedral — single-scale L2 (SSD)" class="w-full h-full object-cover" loading="lazy">
+      </figure>
+      <p class="text-sm text-slate-600 dark:text-slate-300">
+        <span class="font-semibold"></span>
+        G = (5, 2), R = (12, 3)
+      </p>
+    </div>
+
+    <!-- Monastery -->
+    <div class="space-y-2">
+      <figure class="shot aspect-square">
+        <img src="./out/monastery_fin.jpg" alt="Monastery — single-scale L2 (SSD)" class="w-full h-full object-cover" loading="lazy">
+      </figure>
+      <p class="text-sm text-slate-600 dark:text-slate-300">
+        <span class="font-semibold"></span>
+        G = (-3, 2), R = (3, 2)
+      </p>
+    </div>
+
+    <!-- Tobolsk -->
+    <div class="space-y-2">
+      <figure class="shot aspect-square">
+        <img src="./out/tobolsk_fin.jpg" alt="Tobolsk — single-scale L2 (SSD)" class="w-full h-full object-cover" loading="lazy">
+      </figure>
+      <p class="text-sm text-slate-600 dark:text-slate-300">
+        <span class="font-semibold"></span>
+        G = (3, 3), R = (7, 3)
+      </p>
+    </div>
+  </div>
+</section>
+
+
+
+
+
+
+
+
+
+
+<!-- Part 2 -->
+<section id="pyramid">
+  <h2 class="text-xl sm:text-2xl font-semibold mb-4">Part 2: Coarse-to-Fine Pyramid Speedup</h2>
+
+  <p class="text-slate-600 dark:text-slate-300 mb-6 max-w-2xl">
+    We build an image pyramid with a scale factor of 2 and align from <em>coarse → fine</em>. We first run a global search as 
+    in part 1 on the coarsest image (cheap process), and then use the computed shift in pixels to scale up to a larger version of the same image
+    (multiply by <code>pyr_factor</code>), pre-shift the moving channel, and refine with a local window. As before, we make 
+    sure to only factor in valid regions of the image, using a crop and wrap mask as described above. 
+  </p>
+
+  <p class="text-slate-600 dark:text-slate-300 mb-6 max-w-2xl">
+  Below are images computed using NCC and L2-Norm as error functions. On these scans they often agree almost exactly because exposure differences are small and edges are strong; NCC seems to be more robust if brightness varies from overall experiments.
+  L2-norm performs worse than NCC on images like Emir (where it does not perform well when adjusted to the blue channel). With the selected scaling factor and radius of search, the metrics perform extremely similarily, differing by at most 1-2 pixels in some images.
+
+  <div class="text-slate-600 dark:text-slate-300 max-w-2xl">
+    <p class="mb-2 font-semibold">Notes / issues encountered</p>
+    <ul class="list-disc pl-6 space-y-1">
+      <li> If the coarser images fail to align due to incorrect initialization, then the algorithm will not be able to recover, provided the initial error is large enough. 
+    </ul>
+  </div>
+</section>
+
+
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+    Each row shows <span class="font-semibold">NCC</span> (left) and <span class="font-semibold">L2-Norm</span> (right) along with channel offsets.
+  </p>
+
+  <div class="space-y-12 max-w-5xl">
+    <!-- Church -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Church</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/church_ref-green.jpg" alt="Church — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> B = (-25, -4), R = (33, -8)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/church_ref-green.euc.jpg" alt="Church — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> B = (-25, -4), R = (33, -8)</p>
+        </div>
       </div>
-    </section>
+    </div>
+
+    <!-- Emir -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Emir</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/emir_ref-green.jpg" alt="Emir — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> B = (25, 3), R = (58, -4)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/emir_ref-green.euc.jpg" alt="Emir — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> B = (-48, -24), R = (57, 17)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Harvesters -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Harvesters</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/harvesters.jpg" alt="Harvesters — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> B = (-59, -17), R = (64, -3)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/harvesters_ref-green.euc.jpg" alt="Harvesters — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> B = (-59, -17), R = (64, -3)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Icon -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Icon</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/icon_ref-green.jpg" alt="Icon — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> B = (-41, -18), R = (49, 5)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/icon_ref-green.euc.jpg" alt="Icon — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> B = (-42, -18), R = (49, 5)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Italii -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Italii</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/italil_ref-green.jpg" alt="Italii — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> B = (-38, -21), R = (39, 15)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <!-- If you only have the NCC file, you can duplicate it or add the L2 file when available -->
+            <img src="./out/italil_ref-green.jpg" alt="Italii — L2-Norm (same result)" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> B = (-38, -21), R = (39, 15)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lastochikino -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Lastochikino</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/lastochikino_ref-blue.jpg" alt="Lastochikino — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> G = (-3, -2), R = (69, -8)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/lastochikino_ref-blue.euc.jpg" alt="Lastochikino — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> G = (-3, -2), R = (75, -8)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lugano -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Lugano</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/lugano_ref-green.jpg" alt="Lugano — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> B = (-41, 15), R = (53, -13)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/lugano_ref-green.euc.jpg" alt="Lugano — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> B = (-41, 15), R = (53, -13)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Three Generations -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Three Generations</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/three_generations_ref-green.jpg" alt="Three Generations — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> B = (-51, -14), R = (59, -2)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <!-- If you have an L2 image, replace this src with the .euc.jpg version -->
+            <img src="./out/three_generations_ref-green.jpg" alt="Three Generations — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> B = (-52, -14), R = (59, -3)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Siren -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Siren</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/siren_ref-green.jpg" alt="Siren — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> B = (-49, 5), R = (47, -19)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/siren_ref-green.euc.jpg" alt="Siren — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> B = (-49, 5), R = (47, -19)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Melons -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Melons</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/melons_ref-red.jpg" alt="Melons — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> G = (-96, -3), B = (-181, -12)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/melons_ref-red.euc.jpg" alt="Melons — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> G = (-96, -3), B = (-181, -13)</p>
+        </div>
+      </div>
+    </div>
+
+
+      <!-- Melons -->
+    <div>
+      <h3 class="text-lg sm:text-xl font-semibold mb-2">Melons</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/self_portrait_ref-blue.jpg" alt="Melons — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">NCC:</span> G = (-96, -3), B = (-181, -12)</p>
+        </div>
+        <div class="space-y-2">
+          <figure class="shot aspect-square">
+            <img src="./out/self_portrait_ref-blue.euc.jpg" alt="Melons — L2-Norm" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold">L2-Norm:</span> G = (-96, -3), B = (-181, -13)</p>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Additional examples (NCC only) -->
+    <div>
+      <h2 class="text-lg sm:text-xl font-semibold mt-8 mb-4">Additional Examples (Library of Congress, NCC)</h2>
+      <div class="space-y-8">
+        <div>
+          <h4 class="font-semibold mb-2">V Malorossii</h4>
+          <figure class="shot aspect-square">
+            <img src="./out/v_malorossii_ref-blue.jpg" alt="V Malorossii — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300 mt-2"><span class="font-semibold">NCC:</span> G = (-22, 10), R = (-33, 12)</p>
+        </div>
+        <div>
+          <h4 class="font-semibold mb-2">Kurmy</h4>
+          <figure class="shot aspect-square">
+            <img src="./out/kurmy_ref-blue.jpg" alt="Kurmy — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300 mt-2"><span class="font-semibold">NCC:</span> G = (26, -18), R = (116, -38)</p>
+        </div>
+        <div>
+          <h4 class="font-semibold mb-2">Evangelie</h4>
+          <figure class="shot aspect-square">
+            <img src="./out/evangelie_ref-blue.jpg" alt="Evangelie — NCC" class="w-full h-full object-cover" loading="lazy">
+          </figure>
+          <p class="text-sm text-slate-600 dark:text-slate-300 mt-2"><span class="font-semibold">NCC:</span> G = (39, -13), R = (86, -27)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+    </div>
+  </section>
+
 
 
   </main>
